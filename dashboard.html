@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard — Linkfolio</title>
+<link rel="stylesheet" href="style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="container dash-header">
+  <a href="dashboard.html" class="brand">Linkfolio</a>
+  <div class="flex-gap">
+    <a id="viewPublic" class="btn secondary small" href="#" target="_blank" rel="noopener">View profile</a>
+    <button id="logoutBtn" class="btn ghost small">Log out</button>
+  </div>
+</header>
+
+<main class="container">
+  <div id="globalAlert" aria-live="polite"></div>
+
+  <section class="stats-grid mb-2" id="statsGrid">
+    <div class="stat"><div class="n" id="statViews">–</div><div class="l">Profile views</div></div>
+    <div class="stat"><div class="n" id="statClicks">–</div><div class="l">Link clicks</div></div>
+    <div class="stat"><div class="n" id="statLinks">–</div><div class="l">Active links</div></div>
+  </section>
+
+  <div class="dash-grid">
+    <!-- ---------- Profile & Theme ---------- -->
+    <aside class="card">
+      <h2 style="margin:0 0 14px;font-size:16px">Profile</h2>
+
+      <div class="text-center mb-2">
+        <img id="avatarPreview" class="avatar-preview" alt="Avatar" />
+        <div class="flex-gap mt-2" style="justify-content:center">
+          <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp" hidden />
+          <button class="btn small" id="uploadAvatarBtn" type="button">Upload</button>
+          <button class="btn small danger" id="removeAvatarBtn" type="button">Remove</button>
+        </div>
+      </div>
+
+      <form id="profileForm">
+        <div class="form-group">
+          <label class="label" for="displayName">Display name</label>
+          <input class="input" id="displayName" maxlength="80" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="bio">Bio</label>
+          <textarea class="textarea" id="bio" maxlength="280"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="label">Username</label>
+          <input class="input" id="usernameDisplay" disabled />
+        </div>
+        <button class="btn block" type="submit" id="saveProfileBtn">Save profile</button>
+      </form>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0" />
+
+      <h2 style="margin:0 0 14px;font-size:16px">Appearance</h2>
+      <form id="themeForm">
+        <div class="form-group">
+          <label class="label" for="mode">Style</label>
+          <select class="select" id="mode">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label" for="bg_type">Background</label>
+          <select class="select" id="bg_type">
+            <option value="gradient">Gradient</option>
+            <option value="solid">Solid color</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label" for="bg_color">Solid background</label>
+          <input class="input" type="color" id="bg_color" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="bg_gradient_from">Gradient from</label>
+          <input class="input" type="color" id="bg_gradient_from" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="bg_gradient_to">Gradient to</label>
+          <input class="input" type="color" id="bg_gradient_to" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="card_color">Card color</label>
+          <input class="input" type="color" id="card_color" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="text_color">Text color</label>
+          <input class="input" type="color" id="text_color" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="accent_color">Accent color</label>
+          <input class="input" type="color" id="accent_color" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="button_style">Button style</label>
+          <select class="select" id="button_style">
+            <option value="filled">Filled</option>
+            <option value="outline">Outline</option>
+            <option value="soft">Soft</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label" for="border_radius">Border radius</label>
+          <input class="input" type="range" id="border_radius" min="0" max="32" step="2" />
+        </div>
+        <div class="form-group">
+          <label class="label" for="font">Font</label>
+          <select class="select" id="font">
+            <option>Inter</option><option>Poppins</option><option>Roboto</option>
+            <option>Lora</option><option>Playfair Display</option>
+          </select>
+        </div>
+        <button class="btn block" type="submit" id="saveThemeBtn">Save appearance</button>
+      </form>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0" />
+
+      <h2 style="margin:0 0 14px;font-size:16px">QR & Share</h2>
+      <div class="text-center">
+        <div class="qr-wrap"><canvas id="qrCanvas" width="200" height="200"></canvas></div>
+        <div class="flex-gap mt-2" style="justify-content:center">
+          <button class="btn small" id="downloadQr" type="button">Download QR</button>
+          <button class="btn small secondary" id="copyUrl" type="button">Copy URL</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ---------- Links ---------- -->
+    <section class="card">
+      <div class="flex-between mb-2">
+        <h2 style="margin:0;font-size:16px">Your links</h2>
+      </div>
+
+      <div id="linksAlert" aria-live="polite"></div>
+
+      <form id="linkForm" class="card" style="background:#f8fafc;margin-bottom:14px">
+        <div class="form-group">
+          <label class="label" for="linkTitle">Title</label>
+          <input class="input" id="linkTitle" maxlength="120" required />
+        </div>
+        <div class="form-group">
+          <label class="label" for="linkUrl">URL</label>
+          <input class="input" id="linkUrl" type="url" placeholder="https://…" required />
+        </div>
+        <input type="hidden" id="linkId" />
+        <div class="flex-gap">
+          <button class="btn" type="submit" id="saveLinkBtn">Add link</button>
+          <button class="btn ghost hidden" type="button" id="cancelEditBtn">Cancel</button>
+        </div>
+      </form>
+
+      <div id="linksList"></div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  const {
+    sb, el, clear, $, $$, requireAuth, showAlert, clearAlert, setLoading,
+    friendlyError, validateUrl, publicProfileUrl, renderQr, DEFAULT_THEME
+  } = App;
+
+  const session = await requireAuth('login.html');
+  if (!session) return;
+  const userId = session.user.id;
+
+  const globalAlert = $('#globalAlert');
+  const linksAlert = $('#linksAlert');
+  let profile = null;
+  let links = [];
+
+  /* --------- Load profile --------- */
+  async function loadProfile() {
+    const { data, error } = await sb.from('profiles')
+      .select('*').eq('id', userId).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Profile not found. Please sign up again.');
+    profile = data;
+  }
+
+  /* --------- Render profile fields --------- */
+  function renderProfile() {
+    $('#displayName').value = profile.display_name || '';
+    $('#bio').value = profile.bio || '';
+    $('#usernameDisplay').value = '@' + profile.username;
+    const avatar = profile.avatar_url || window.__APP_CONFIG__.DEFAULT_AVATAR;
+    $('#avatarPreview').src = avatar;
+    const url = publicProfileUrl(profile.username);
+    $('#viewPublic').href = url;
+    renderQr($('#qrCanvas'), url, 200).catch(e => console.warn(e));
+    renderThemeFields();
+  }
+
+  /* --------- Theme fields --------- */
+  function renderThemeFields() {
+    const t = Object.assign({}, DEFAULT_THEME, profile.theme || {});
+    $('#mode').value = t.mode;
+    $('#bg_type').value = t.bg_type;
+    $('#bg_color').value = t.bg_color;
+    $('#bg_gradient_from').value = t.bg_gradient_from;
+    $('#bg_gradient_to').value = t.bg_gradient_to;
+    $('#card_color').value = t.card_color;
+    $('#text_color').value = t.text_color;
+    $('#accent_color').value = t.accent_color;
+    $('#button_style').value = t.button_style;
+    $('#border_radius').value = t.border_radius;
+    $('#font').value = t.font;
+  }
+  function themeFromForm() {
+    return {
+      mode: $('#mode').value,
+      bg_type: $('#bg_type').value,
+      bg_color: $('#bg_color').value,
+      bg_gradient_from: $('#bg_gradient_from').value,
+      bg_gradient_to: $('#bg_gradient_to').value,
+      card_color: $('#card_color').value,
+      text_color: $('#text_color').value,
+      accent_color: $('#accent_color').value,
+      button_style: $('#button_style').value,
+      border_radius: Number($('#border_radius').value),
+      font: $('#font').value
+    };
+  }
+
+  /* --------- Stats --------- */
+  async function loadStats() {
+    const [views, clicks, linksRes] = await Promise.all([
+      sb.from('profile_views').select('id', { count: 'exact', head: true }).eq('profile_id', userId),
+      sb.from('link_clicks').select('id', { count: 'exact', head: true }).eq('profile_id', userId),
+      sb.from('links').select('id,is_active').eq('user_id', userId)
+    ]);
+    $('#statViews').textContent = views.count ?? 0;
+    $('#statClicks').textContent = clicks.count ?? 0;
+    const active = (linksRes.data || []).filter(l => l.is_active).length;
+    $('#statLinks').textContent = active;
+  }
+
+  /* --------- Links --------- */
+  async function loadLinks() {
+    const { data, error } = await sb.from('links')
+      .select('*').eq('user_id', userId)
+      .order('position', { ascending: true });
+    if (error) throw error;
+    links = data || [];
+    renderLinks();
+  }
+
+  function renderLinks() {
+    const list = $('#linksList');
+    clear(list);
+    if (!links.length) {
+      list.appendChild(el('p', { class: 'muted text-center', text: 'No links yet. Add your first one above.' }));
+      return;
+    }
+    links.forEach((l, i) => list.appendChild(renderLinkRow(l, i)));
+  }
+
+  function renderLinkRow(link, index) {
+    const row = el('div', {
+      class: 'link-item',
+      attrs: { 'data-id': link.id, 'data-pos': index }
+    });
+    const handle = el('div', { class: 'handle', text: '☰', attrs: { 'aria-label': 'Drag to reorder' } });
+    const meta = el('div', { class: 'meta' }, [
+      el('strong', { text: link.title }),
+      el('small', { text: link.url }),
+      el('small', { text: `${link.click_count} clicks · ${link.is_active ? 'Active' : 'Hidden'}`, class: 'muted' })
+    ]);
+    const actions = el('div', { class: 'actions' });
+    actions.appendChild(el('button', {
+      class: 'btn small secondary', text: link.is_active ? 'Hide' : 'Show',
+      on: { click: () => toggleActive(link.id, !link.is_active) }
+    }));
+    actions.appendChild(el('button', {
+      class: 'btn small', text: 'Edit',
+      on: { click: () => startEdit(link) }
+    }));
+    actions.appendChild(el('button', {
+      class: 'btn small danger', text: 'Del',
+      on: { click: () => removeLink(link.id) }
+    }));
+    row.appendChild(handle);
+    row.appendChild(meta);
+    row.appendChild(actions);
+    return row;
+  }
+
+  async function toggleActive(id, val) {
+    const { error } = await sb.from('links').update({ is_active: val }).eq('id', id);
+    if (error) return showAlert(linksAlert, 'error', friendlyError(error));
+    await loadLinks(); await loadStats();
+  }
+
+  function startEdit(link) {
+    $('#linkId').value = link.id;
+    $('#linkTitle').value = link.title;
+    $('#linkUrl').value = link.url;
+    $('#saveLinkBtn').textContent = 'Update link';
+    $('#cancelEditBtn').classList.remove('hidden');
+    window.scrollTo({ top: $('#linkForm').offsetTop - 80, behavior: 'smooth' });
+  }
+  function cancelEdit() {
+    $('#linkId').value = '';
+    $('#linkForm').reset();
+    $('#saveLinkBtn').textContent = 'Add link';
+    $('#cancelEditBtn').classList.add('hidden');
+  }
+  $('#cancelEditBtn').addEventListener('click', cancelEdit);
+
+  async function removeLink(id) {
+    if (!confirm('Delete this link?')) return;
+    const { error } = await sb.from('links').delete().eq('id', id);
+    if (error) return showAlert(linksAlert, 'error', friendlyError(error));
+    await loadLinks(); await loadStats();
+  }
+
+  $('#linkForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearAlert(linksAlert);
+    const title = $('#linkTitle').value.trim();
+    const urlV = validateUrl($('#linkUrl').value);
+    if (!title) return showAlert(linksAlert, 'error', 'Title required');
+    if (!urlV.ok) return showAlert(linksAlert, 'error', urlV.msg);
+
+    const editingId = $('#linkId').value;
+    const btn = $('#saveLinkBtn');
+    setLoading(btn, true, editingId ? 'Updating…' : 'Adding…');
+    try {
+      if (editingId) {
+        const { error } = await sb.from('links')
+          .update({ title, url: urlV.value }).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const pos = links.length ? Math.max(...links.map(l => l.position)) + 1 : 0;
+        const { error } = await sb.from('links')
+          .insert({ user_id: userId, title, url: urlV.value, position: pos });
+        if (error) throw error;
+      }
+      cancelEdit();
+      await loadLinks(); await loadStats();
+      showAlert(linksAlert, 'success', editingId ? 'Link updated' : 'Link added');
+    } catch (err) {
+      showAlert(linksAlert, 'error', friendlyError(err));
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  /* --------- Drag & drop reorder (touch + mouse) --------- */
+  (function enableReorder() {
+    const list = $('#linksList');
+    let dragging = null;
+
+    function onPointerDown(e) {
+      const handle = e.target.closest('.handle');
+      if (!handle) return;
+      dragging = handle.closest('.link-item');
+      dragging.classList.add('dragging');
+      dragging.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    }
+    function onPointerMove(e) {
+      if (!dragging) return;
+      const y = e.clientY;
+      const siblings = [...list.querySelectorAll('.link-item:not(.dragging)')];
+      let before = null;
+      for (const sib of siblings) {
+        const r = sib.getBoundingClientRect();
+        if (y < r.top + r.height / 2) { before = sib; break; }
+      }
+      if (before) list.insertBefore(dragging, before);
+      else list.appendChild(dragging);
+    }
+    async function onPointerUp(e) {
+      if (!dragging) return;
+      dragging.classList.remove('dragging');
+      dragging.releasePointerCapture?.(e.pointerId);
+      dragging = null;
+      const ids = [...list.querySelectorAll('.link-item')].map(n => n.getAttribute('data-id'));
+      try {
+        const { error } = await sb.rpc('reorder_links', { p_ids: ids });
+        if (error) throw error;
+        await loadLinks();
+      } catch (err) {
+        showAlert(linksAlert, 'error', friendlyError(err));
+        await loadLinks();
+      }
+    }
+    list.addEventListener('pointerdown', onPointerDown);
+    list.addEventListener('pointermove', onPointerMove);
+    list.addEventListener('pointerup', onPointerUp);
+    list.addEventListener('pointercancel', onPointerUp);
+  })();
+
+  /* --------- Profile form --------- */
+  $('#profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearAlert(globalAlert);
+    const btn = $('#saveProfileBtn');
+    setLoading(btn, true, 'Saving…');
+    try {
+      const { error } = await sb.from('profiles').update({
+        display_name: $('#displayName').value.trim().slice(0, 80),
+        bio: $('#bio').value.trim().slice(0, 280)
+      }).eq('id', userId);
+      if (error) throw error;
+      showAlert(globalAlert, 'success', 'Profile saved');
+      await loadProfile(); renderProfile();
+    } catch (err) {
+      showAlert(globalAlert, 'error', friendlyError(err));
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  /* --------- Theme form --------- */
+  $('#themeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearAlert(globalAlert);
+    const btn = $('#saveThemeBtn');
+    setLoading(btn, true, 'Saving…');
+    try {
+      const { error } = await sb.from('profiles')
+        .update({ theme: themeFromForm() }).eq('id', userId);
+      if (error) throw error;
+      showAlert(globalAlert, 'success', 'Appearance saved');
+      await loadProfile();
+    } catch (err) {
+      showAlert(globalAlert, 'error', friendlyError(err));
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  /* --------- Avatar upload --------- */
+  $('#uploadAvatarBtn').addEventListener('click', () => $('#avatarInput').click());
+  $('#avatarInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    clearAlert(globalAlert);
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type))
+      return showAlert(globalAlert, 'error', 'Only JPG, PNG, or WEBP allowed');
+    if (file.size > 2 * 1024 * 1024)
+      return showAlert(globalAlert, 'error', 'Max file size is 2 MB');
+
+    const ext = file.type.split('/')[1].replace('jpeg', 'jpg');
+    const path = `${userId}/avatar.${ext}`;
+    try {
+      const { error: upErr } = await sb.storage.from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = urlData.publicUrl + '?t=' + Date.now();
+      const { error: dbErr } = await sb.from('profiles')
+        .update({ avatar_url: publicUrl }).eq('id', userId);
+      if (dbErr) throw dbErr;
+      await loadProfile(); renderProfile();
+      showAlert(globalAlert, 'success', 'Avatar updated');
+    } catch (err) {
+      showAlert(globalAlert, 'error', friendlyError(err));
+    } finally {
+      $('#avatarInput').value = '';
+    }
+  });
+
+  $('#removeAvatarBtn').addEventListener('click', async () => {
+    if (!confirm('Remove your avatar?')) return;
+    clearAlert(globalAlert);
+    try {
+      // Best-effort delete across possible extensions
+      await sb.storage.from('avatars').remove([
+        `${userId}/avatar.jpg`,
+        `${userId}/avatar.png`,
+        `${userId}/avatar.webp`
+      ]);
+      const { error } = await sb.from('profiles').update({ avatar_url: null }).eq('id', userId);
+      if (error) throw error;
+      await loadProfile(); renderProfile();
+      showAlert(globalAlert, 'success', 'Avatar removed');
+    } catch (err) {
+      showAlert(globalAlert, 'error', friendlyError(err));
+    }
+  });
+
+  /* --------- QR & Share --------- */
+  $('#downloadQr').addEventListener('click', () => {
+    const canvas = $('#qrCanvas');
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `${profile.username}-qr.png`;
+    a.click();
+  });
+  $('#copyUrl').addEventListener('click', async () => {
+    const url = publicProfileUrl(profile.username);
+    try {
+      await navigator.clipboard.writeText(url);
+      showAlert(globalAlert, 'success', 'URL copied');
+    } catch {
+      prompt('Copy your profile URL:', url);
+    }
+  });
+
+  /* --------- Logout --------- */
+  $('#logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.replace('login.html');
+  });
+
+  /* --------- Init --------- */
+  try {
+    await loadProfile();
+    if (profile.is_blocked) {
+      showAlert(globalAlert, 'error',
+        'Your account has been blocked. Contact support.');
+      $$('form button, #uploadAvatarBtn, #removeAvatarBtn').forEach(b => b.disabled = true);
+      return;
+    }
+    renderProfile();
+    await Promise.all([loadLinks(), loadStats()]);
+  } catch (err) {
+    showAlert(globalAlert, 'error', friendlyError(err));
+  }
+})();
+</script>
+</body>
+</html>
