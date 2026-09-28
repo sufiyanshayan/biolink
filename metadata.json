@@ -1,0 +1,6 @@
+{
+  "name": "BioLink - Link-in-Bio SaaS Platform",
+  "description": "A premium, production-ready Link-in-Bio SaaS platform inspired by Linktree/HeyLink. Features dynamic profiles, custom themes, analytics, QR codes, admin panel, and permanent account deletion, built with Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

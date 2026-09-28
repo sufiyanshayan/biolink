@@ -1,0 +1,22 @@
+# ============================================================================
+# NETLIFY REDIRECTS CONFIGURATION
+# ============================================================================
+# Exclude existing physical static files to prevent routing conflicts
+
+/index.html              /index.html            200
+/login.html              /login.html            200
+/signup.html             /signup.html           200
+/forgot-password.html    /forgot-password.html  200
+/reset-password.html     /reset-password.html   200
+/dashboard.html          /dashboard.html        200
+/profile.html            /profile.html          200
+/admin-login.html        /admin-login.html      200
+/admin-panel.html        /admin-panel.html      200
+/404.html                /404.html              200
+/config.js               /config.js             200
+/app.js                  /app.js                200
+/style.css               /style.css             200
+
+# Pretty username routing: Rewrite example.com/username -> profile.html?u=username
+# Under-the-hood rewrite (200 Status) keeps the clean URL in the browser bar
+/:username               /profile.html?u=:username   200
