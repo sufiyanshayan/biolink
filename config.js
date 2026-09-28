@@ -3,8 +3,8 @@
 // ============================================================================
 
 // 1. HARDCODED CREDENTIALS (Configure these for your production deploy)
-const CONFIG_SUPABASE_URL = ""; // INSERT_SUPABASE_URL_HERE
-const CONFIG_SUPABASE_ANON_KEY = ""; // INSERT_SUPABASE_ANON_KEY_HERE
+const CONFIG_SUPABASE_URL = "https://ovzyjnoqnbpwwlqtkwit.supabase.co"; // INSERT_SUPABASE_URL_HERE
+const CONFIG_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92enlqbm9xbmJwd3dscXRrd2l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzA2MDIsImV4cCI6MjA5NjUwNjYwMn0.UgGC9Bvjeud6v29CjUVrnfRWBuf7jDTxmCOW0u62NRw"; // INSERT_SUPABASE_ANON_KEY_HERE
 
 // 2. RUNTIME RESOLUTION
 // Fallbacks to localStorage to allow interactive configuration directly in the preview.
