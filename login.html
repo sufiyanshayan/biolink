@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log In | BioLink</title>
+  
+  <!-- Tailwind CSS & style.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Core Application Stylesheets and Configs (Self-Contained) -->
+  <style>
+    /* ============================================================================
+       BIOLINK CUSTOM STYLES & INTER FONT IMPORT
+       ============================================================================ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    :root {
+        --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+        font-family: var(--font-inter);
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-panel-dark {
+        background: rgba(15, 15, 15, 0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.25);
+        border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.45);
+    }
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    .animate-scale-in {
+        animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .dragging-item {
+        opacity: 0.5;
+        background-color: rgba(99, 102, 241, 0.15) !important;
+        border-color: rgb(99, 102, 241) !important;
+    }
+    .unboxed-meta-item + .unboxed-meta-item::before {
+        content: "·";
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        color: currentColor;
+        opacity: 0.5;
+    }
+    input:focus-visible, button:focus-visible {
+        outline: 2px solid #6366f1;
+        outline-offset: 2px;
+    }
+  </style>
+  
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    // CORE APPLICATION UTILITIES & AUTH SHARED LOGIC
+    function showToast(message, type = 'info') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-full px-4';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        let bgClass = 'bg-zinc-900 border-zinc-850 text-zinc-100';
+        let iconSvg = '';
+        if (type === 'success') {
+            bgClass = 'bg-emerald-950 border-emerald-900 text-emerald-100';
+            iconSvg = `<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        } else if (type === 'error') {
+            bgClass = 'bg-rose-950 border-rose-900 text-rose-100';
+            iconSvg = `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+        } else if (type === 'warning') {
+            bgClass = 'bg-amber-950 border-amber-900 text-amber-100';
+            iconSvg = `<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+        } else {
+            iconSvg = `<svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        }
+        toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg ${bgClass} transform transition-all duration-300 translate-y-10 opacity-0 animate-in slide-in-from-bottom-2 duration-300`;
+        toast.innerHTML = `
+            <div class="shrink-0">${iconSvg}</div>
+            <p class="text-sm font-medium flex-1">${escapeHtml(message)}</p>
+            <button class="text-zinc-400 hover:text-white text-xs cursor-pointer focus:outline-none p-0.5" onclick="this.parentElement.remove()">✕</button>
+        `;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('translate-y-10', 'opacity-0');
+        }, 10);
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function validateUsername(username) {
+        const usernameRegex = /^[a-z0-9_]{3,30}$/;
+        return usernameRegex.test(username);
+    }
+
+    function validateUrl(url) {
+        try {
+            new URL(url);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async function getSession() {
+        if (!isSupabaseConfigured()) return null;
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            return data.session;
+        } catch (e) {
+            console.error("Session retrieve failed:", e);
+            return null;
+        }
+    }
+
+    async function getCurrentUser() {
+        if (!isSupabaseConfigured()) return null;
+        try {
+            const { data, error } = await supabase.auth.getUser();
+            if (error) throw error;
+            return data.user;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function getAuthenticatedSession() {
+        return await getCurrentUser();
+    }
+
+    async function protectUserRoute() {
+        const user = await getCurrentUser();
+        if (!user) {
+            window.location.href = 'login.html';
+            return null;
+        }
+        return user;
+    }
+
+    async function checkIsBlocked(userId) {
+        if (!isSupabaseConfigured()) return false;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('is_blocked')
+                .eq('id', userId)
+                .single();
+            if (error) return false;
+            return data ? data.is_blocked : false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async function loadSiteContent(pageKey, fallbacks) {
+        const isCallback = typeof fallbacks === 'function';
+        const content = isCallback ? {} : { ...fallbacks };
+        if (!isSupabaseConfigured()) {
+            if (isCallback) {
+                fallbacks(content);
+            }
+            return content;
+        }
+        try {
+            const { data, error } = await supabase
+                .from('site_content')
+                .select('content_key, content_value')
+                .eq('page_key', pageKey);
+            if (!error && data) {
+                data.forEach(row => {
+                    content[row.content_key] = row.content_value;
+                });
+            }
+        } catch (e) {
+            console.warn("Failed to retrieve site content from DB, falling back:", e);
+        }
+        if (isCallback) {
+            fallbacks(content);
+        }
+        return content;
+    }
+
+    async function checkIsAdmin(userId) {
+        if (!isSupabaseConfigured() || !userId) return false;
+        try {
+            const { data, error } = await supabase.rpc('is_admin', { p_user_id: userId });
+            if (error) {
+                const { data: adminRow } = await supabase
+                    .from('admins')
+                    .select('role')
+                    .eq('user_id', userId)
+                    .eq('is_active', true)
+                    .single();
+                return !!adminRow;
+            }
+            return !!data;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async function handleLogout() {
+        if (isSupabaseConfigured()) {
+            await supabase.auth.signOut();
+        }
+        showToast("Signed out successfully", "success");
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 800);
+    }
+
+    function toggleLoading(buttonId, isLoading, defaultText = "Submit") {
+        const btn = document.getElementById(buttonId);
+        if (!btn) return;
+        if (isLoading) {
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="animate-spin h-4 w-4 text-current inline mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+            `;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = defaultText;
+        }
+    }
+
+    function renderSafeText(selector, text, fallback = "") {
+        const el = document.querySelector(selector);
+        if (el) {
+            el.textContent = text || fallback;
+        }
+    }
+
+    // Format date to readable string
+    function formatRelativeDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function bindSiteContent(content) {
+        if (!content || typeof content !== 'object') return;
+        Object.entries(content).forEach(([key, value]) => {
+            if (!value) return;
+            const elements = document.querySelectorAll(`[data-content="${key}"]`);
+            elements.forEach(el => {
+                if (el.tagName === 'A' && (key.endsWith('_url') || key.endsWith('_link') || key.includes('cta_url') || key.includes('cta_link'))) {
+                    el.href = value;
+                } else if (el.tagName === 'IMG') {
+                    el.src = value;
+                } else {
+                    el.textContent = value;
+                }
+            });
+        });
+    }
+  </script>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen flex flex-col antialiased">
+
+  <!-- Header -->
+  <header class="w-full bg-transparent">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
+      <a href="index.html" class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+        <span class="bg-black text-white px-2 py-1 rounded-md text-sm font-black">B</span>
+        <span>BioLink</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Login Main Card Area -->
+  <main class="flex-grow flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8 space-y-6">
+      
+      <!-- Headline Group -->
+      <div class="text-center space-y-2">
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 text-wrap-balance" data-content="headline_title">
+          Welcome Back
+        </h1>
+        <p class="text-sm text-slate-500 text-wrap-balance" data-content="headline_subtitle">
+          Sign in to manage your digital storefront, analyze clicks, and adjust designs.
+        </p>
+      </div>
+
+      <!-- Error / Success Alert Container -->
+      <div id="alert-box" class="hidden rounded-xl p-3 text-sm font-medium"></div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="space-y-4">
+        <div class="space-y-1">
+          <label for="email" class="text-xs font-semibold uppercase text-slate-500 tracking-wider">Email Address</label>
+          <input 
+            type="email" 
+            id="email" 
+            required 
+            placeholder="name@domain.com"
+            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all"
+          >
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label for="password" class="text-xs font-semibold uppercase text-slate-500 tracking-wider">Password</label>
+            <a href="forgot-password.html" class="text-xs font-medium text-slate-500 hover:text-black transition-colors">Forgot password?</a>
+          </div>
+          <input 
+            type="password" 
+            id="password" 
+            required 
+            placeholder="••••••••"
+            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all"
+          >
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          id="submit-btn"
+          class="w-full bg-black hover:bg-slate-800 text-white font-semibold text-sm py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          <span id="btn-text">Sign In</span>
+          <span id="btn-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        </button>
+      </form>
+
+      <!-- Sign Up Prompt -->
+      <div class="text-center text-sm text-slate-500">
+        Don't have an account? 
+        <a href="signup.html" class="font-bold text-black hover:underline">Get started free</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="py-6 text-center text-xs text-slate-400">
+    &copy; 2026 BioLink SaaS. Built securely with Supabase.
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1. Initial connection check
+      checkSupabaseConnection();
+
+      // 2. Redirect authenticated users to Dashboard
+      const sessionUser = await getAuthenticatedSession();
+      if (sessionUser) {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      // 3. Load dynamic site content
+      loadSiteContent('login', (content) => {
+        bindSiteContent(content);
+      });
+
+      // 4. Handle form submission
+      const form = document.getElementById('login-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const btnText = document.getElementById('btn-text');
+      const btnSpinner = document.getElementById('btn-spinner');
+      const alertBox = document.getElementById('alert-box');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+
+        // Reset state
+        alertBox.className = 'hidden';
+        alertBox.innerText = '';
+        submitBtn.disabled = true;
+        btnText.innerText = 'Signing in...';
+        btnSpinner.classList.remove('hidden');
+
+        try {
+          if (isSupabaseConfigured()) {
+            // Authentic Supabase Auth login
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email,
+              password
+            });
+
+            if (error) throw error;
+
+            // Check if profile is blocked before redirecting
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('is_blocked')
+              .eq('id', data.user.id)
+              .single();
+
+            if (!profileError && profile && profile.is_blocked) {
+              await supabase.auth.signOut();
+              throw new Error('Your account is blocked. Access is restricted.');
+            }
+
+            // Success
+            alertBox.className = 'bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-xl p-3 text-sm font-medium';
+            alertBox.innerText = 'Log in successful! Redirecting...';
+            showToast('Log in successful!');
+            setTimeout(() => {
+              window.location.href = 'dashboard.html';
+            }, 1000);
+
+          } else {
+            // Local Demo Mode Mock fallback
+            const demoUserEmail = localStorage.getItem('demo_registered_email') || 'test@example.com';
+            const demoUserPass = localStorage.getItem('demo_registered_password') || 'password123';
+            const demoUsername = localStorage.getItem('demo_registered_username') || 'demo_user';
+
+            if (email.toLowerCase() === demoUserEmail.toLowerCase() && password === demoUserPass) {
+              // Create demo session
+              const mockSessionUser = {
+                id: '00000000-0000-0000-0000-000000000000',
+                email: email,
+                user_metadata: { username: demoUsername }
+              };
+              localStorage.setItem('demo_user', JSON.stringify(mockSessionUser));
+
+              alertBox.className = 'bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-xl p-3 text-sm font-medium';
+              alertBox.innerText = 'Log in successful (Demo Mode)! Redirecting...';
+              showToast('Log in successful (Demo Mode)!');
+              setTimeout(() => {
+                window.location.href = 'dashboard.html';
+              }, 1000);
+            } else {
+              throw new Error('Invalid email or password combination.');
+            }
+          }
+        } catch (error) {
+          console.error(error);
+          alertBox.className = 'bg-rose-50 text-rose-800 border border-rose-100 rounded-xl p-3 text-sm font-medium animate-fade-in';
+          alertBox.innerText = error.message || 'Log in failed. Please try again.';
+          showToast(error.message || 'Log in failed', 'error');
+          
+          submitBtn.disabled = false;
+          btnText.innerText = 'Sign In';
+          btnSpinner.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

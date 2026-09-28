@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Not Found | BioLink</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Core Application Stylesheets (Self-Contained) -->
+  <style>
+    /* ============================================================================
+       BIOLINK CUSTOM STYLES & INTER FONT IMPORT
+       ============================================================================ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    :root {
+        --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+        font-family: var(--font-inter);
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-panel-dark {
+        background: rgba(15, 15, 15, 0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.25);
+        border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.45);
+    }
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.97);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    .animate-scale-in {
+        animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .dragging-item {
+        opacity: 0.5;
+        background-color: rgba(99, 102, 241, 0.15) !important;
+        border-color: rgb(99, 102, 241) !important;
+    }
+    .unboxed-meta-item + .unboxed-meta-item::before {
+        content: "·";
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        color: currentColor;
+        opacity: 0.5;
+    }
+    input:focus-visible, button:focus-visible {
+        outline: 2px solid #6366f1;
+        outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-white font-sans min-h-screen flex flex-col items-center justify-center p-4 antialiased">
+
+  <main class="text-center space-y-6 max-w-md">
+    <!-- Icon -->
+    <div class="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-2xl mx-auto text-slate-400 font-mono">
+      404
+    </div>
+
+    <!-- Details -->
+    <div class="space-y-2">
+      <h1 class="text-2xl font-extrabold tracking-tight text-white">Oops! Lost in the digital space</h1>
+      <p class="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto text-wrap-balance">
+        The BioLink page you are attempting to view does not exist, has changed locations, or has been permanently removed by its owner.
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+      <a href="index.html" class="w-full sm:w-auto bg-white hover:bg-slate-100 text-black text-xs font-bold py-3 px-6 rounded-xl transition-all shadow-md">
+        Back to Homepage
+      </a>
+      <a href="signup.html" class="w-full sm:w-auto text-xs font-bold text-slate-400 hover:text-white py-3 px-6 transition-colors">
+        Claim Your Username Link
+      </a>
+    </div>
+  </main>
+
+  <footer class="absolute bottom-6 text-[10px] text-slate-600 font-mono">
+    &copy; 2026 BioLink SaaS Platform. All rights reserved.
+  </footer>
+
+</body>
+</html>
