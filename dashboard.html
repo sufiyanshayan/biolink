@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | BioLink</title>
+  
+  <!-- Tailwind CSS & inline page styles -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            mono: ['Space Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+/* ============================================================================
+   BIOLINK GLOBAL STYLES (shared by every page)
+   ============================================================================ */
+:root { --font-inter: 'Inter', system-ui, -apple-system, sans-serif; }
+body { font-family: var(--font-inter); }
+
+.glass-panel { background: rgba(255,255,255,.05); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.1); }
+.glass-panel-dark { background: rgba(15,15,15,.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.04); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(156,163,175,.25); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(156,163,175,.45); }
+
+@keyframes scaleIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+@keyframes fadeIn  { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-scale-in { animation: scaleIn .2s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-fade-in  { animation: fadeIn .25s ease-out both; }
+
+.dragging-item, .sortable-ghost { opacity: .5; background-color: rgba(99,102,241,.15) !important; border-color: rgb(99,102,241) !important; }
+.unboxed-meta-item + .unboxed-meta-item::before { content: "·"; margin: 0 .5rem; color: currentColor; opacity: .5; }
+
+input:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+
+/* Utilities missing from the Tailwind CDN build */
+.text-wrap-balance { text-wrap: balance; }
+.border-3 { border-width: 3px; }
+.qrcode-container canvas, .qrcode-container img { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
+/* Public-profile / preview theme engine (values set by applyProfileTheme in app.js) */
+.theme-text-primary { color: var(--t-text, #fff); }
+.theme-text-muted   { color: var(--t-text, #fff); opacity: .75; }
+.theme-btn {
+  background: var(--t-btn-bg, #fff);
+  color: var(--t-btn-text, #0f172a);
+  border-radius: var(--t-radius, 12px);
+  text-decoration: none;
+}
+
+/* Demo-mode banner */
+#demo-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 60; background: #fef3c7; color: #78350f; font-size: 12px; font-weight: 600; text-align: center; padding: 6px 12px; }
+body.has-demo-banner { padding-top: 30px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+  
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- SortableJS CDN (For mobile drag and drop reordering) -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  
+  <!-- QRCode.js CDN (For vector QR code generation) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+  
+  <!-- Core Configs and Utilities -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  
+</head>
+<body class="bg-slate-50 font-sans min-h-screen text-slate-900 flex flex-col antialiased">
+
+  <!-- Main Sticky Dashboard Navigation (Top Bar Contract) -->
+  <header class="w-full bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <a href="index.html" class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <span class="bg-black text-white px-2 py-1 rounded-md text-sm font-black">B</span>
+          <span>BioLink</span>
+        </a>
+        <div id="username-display-header" class="hidden md:flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-600">
+          <span id="header-host">biolink.com/</span><span id="header-username-val">username</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a id="view-profile-btn" href="#" target="_blank" class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          <span>My Profile</span>
+        </a>
+        <button id="logout-btn" class="text-xs font-semibold text-slate-500 hover:text-black px-3 py-2 transition-colors">
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading Screen Cover -->
+  <div id="loading-screen" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3">
+    <span class="w-8 h-8 border-3 border-slate-200 border-t-black rounded-full animate-spin"></span>
+    <span class="text-xs font-semibold text-slate-500">Loading your creative workspace...</span>
+  </div>
+
+  <!-- Dashboard Grid -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- Control Panel (Left/Main Column) -->
+      <div class="lg:col-span-7 space-y-6">
+        
+        <!-- Navigation Tabs (Interactive filters styled beautifully with no capsule pills) -->
+        <div class="flex items-center gap-1 p-1 bg-slate-200/60 rounded-xl">
+          <button id="tab-links" class="flex-1 text-center py-2 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+            Links
+          </button>
+          <button id="tab-appearance" class="flex-1 text-center py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+            Appearance
+          </button>
+          <button id="tab-analytics" class="flex-1 text-center py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"/></svg>
+            Analytics
+          </button>
+          <button id="tab-settings" class="flex-1 text-center py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Settings
+          </button>
+        </div>
+
+        <!-- ================= LINKS PANEL ================= -->
+        <div id="panel-links" class="space-y-6">
+          
+          <!-- Add Link Form Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+            <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider">Add New Link</h3>
+            <form id="add-link-form" class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                  <label for="link-title" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Link Title</label>
+                  <input type="text" id="link-title" required placeholder="My Website, Portfolio, Store" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all">
+                </div>
+                <div class="space-y-1">
+                  <label for="link-url" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Destination URL</label>
+                  <input type="text" id="link-url" required placeholder="https://example.com" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all">
+                </div>
+              </div>
+              <button type="submit" class="w-full bg-black hover:bg-slate-800 text-white font-semibold text-sm py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                <span>Add Link</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Active Links List Area -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider">Your Links</h3>
+              <p class="text-xs text-slate-400">Drag items using handle to reorder on mobile</p>
+            </div>
+            
+            <!-- Empty state -->
+            <div id="links-empty" class="hidden py-12 text-center text-slate-400 space-y-2">
+              <svg class="w-12 h-12 mx-auto text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              <p class="text-sm font-semibold">No links found</p>
+              <p class="text-xs">Add your first custom hyperlink to start getting profile clicks.</p>
+            </div>
+
+            <!-- Sortable links container -->
+            <div id="links-list" class="space-y-3">
+              <!-- Dynamically populated link cards -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= APPEARANCE PANEL ================= -->
+        <div id="panel-appearance" class="hidden space-y-6">
+          
+          <!-- Avatar and Basic Profile Details Setup -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
+            <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider">Profile Layout</h3>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-6">
+              <!-- Avatar Preview and Upload Area -->
+              <div class="relative shrink-0">
+                <div class="w-24 h-24 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200 flex items-center justify-center relative shadow-inner group">
+                  <img id="avatar-preview-element" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23cbd5e1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/%3E%3C/svg%3E" class="w-full h-full object-cover">
+                </div>
+                <!-- Mini Spinner overlay -->
+                <div id="avatar-spinner" class="absolute inset-0 bg-white/70 backdrop-blur-xs rounded-full flex items-center justify-center hidden">
+                  <span class="w-5 h-5 border-2 border-slate-300 border-t-black rounded-full animate-spin"></span>
+                </div>
+              </div>
+
+              <!-- Upload actions -->
+              <div class="flex-grow text-center sm:text-left space-y-2">
+                <p class="text-sm font-bold text-slate-800">Profile Image</p>
+                <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  <label class="cursor-pointer bg-black text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-800 transition-all shrink-0">
+                    Upload Photo
+                    <input type="file" id="avatar-file-input" accept="image/png, image/jpeg, image/jpg, image/webp" class="hidden">
+                  </label>
+                  <button id="delete-avatar-btn" class="bg-rose-50 text-rose-600 border border-rose-100 px-4 py-2 rounded-lg text-xs font-bold hover:bg-rose-100 transition-all">
+                    Remove
+                  </button>
+                </div>
+                <p class="text-[10px] text-slate-400">Allowed extensions: JPG, JPEG, PNG, WEBP. Max size limit: 2MB.</p>
+              </div>
+            </div>
+
+            <!-- Profile form fields -->
+            <form id="profile-text-form" class="space-y-4 pt-4 border-t border-slate-100">
+              <div class="space-y-1">
+                <label for="display-name" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Display Name</label>
+                <input type="text" id="display-name" placeholder="John Doe" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all">
+              </div>
+              <div class="space-y-1">
+                <label for="bio" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bio</label>
+                <textarea id="bio" rows="3" placeholder="Write a short summary about yourself..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black focus:bg-white transition-all resize-none"></textarea>
+              </div>
+              <button type="submit" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-3 rounded-xl transition-all shadow-sm">
+                Save Profile Layout
+              </button>
+            </form>
+          </div>
+
+          <!-- Color Theme Designer Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
+            <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider">Theme & Accent Colors</h3>
+            
+            <div class="space-y-4">
+              <!-- Grid selection of templates -->
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preset Templates</p>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <button type="button" onclick="selectThemePreset('dark')" class="p-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-semibold text-center hover:scale-105 transition-transform">Dark Slate</button>
+                <button type="button" onclick="selectThemePreset('emerald')" class="p-3 bg-emerald-950 border border-emerald-900 rounded-xl text-emerald-100 text-xs font-semibold text-center hover:scale-105 transition-transform">Forest Green</button>
+                <button type="button" onclick="selectThemePreset('violet')" class="p-3 bg-indigo-950 border border-indigo-900 rounded-xl text-indigo-100 text-xs font-semibold text-center hover:scale-105 transition-transform">Midnight Indigo</button>
+                <button type="button" onclick="selectThemePreset('minimal-light')" class="p-3 bg-white border border-slate-200 rounded-xl text-slate-950 text-xs font-semibold text-center hover:scale-105 transition-transform">Classic Light</button>
+              </div>
+
+              <!-- Detailed overrides -->
+              <div class="border-t border-slate-100 pt-4 space-y-4">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Custom Style Rules</p>
+                
+                <!-- Background customization options -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="space-y-1">
+                    <label for="theme-bg-type" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Background Mode</label>
+                    <select id="theme-bg-type" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                      <option value="solid">Solid Color</option>
+                      <option value="gradient">Linear Gradient Preset</option>
+                    </select>
+                  </div>
+                  <div class="space-y-1">
+                    <label for="theme-bg-color" id="theme-bg-color-label" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Color Hex / Value</label>
+                    <input type="text" id="theme-bg-color" placeholder="#111827" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                  </div>
+                </div>
+
+                <!-- Text color and Buttons styling parameters -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="space-y-1">
+                    <label for="theme-text-color" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Primary Text Color</label>
+                    <input type="text" id="theme-text-color" placeholder="#ffffff" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                  </div>
+                  <div class="space-y-1">
+                    <label for="theme-font" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Font Family Selection</label>
+                    <select id="theme-font" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black font-semibold">
+                      <option value="font-sans">Plus Jakarta Sans (Inter / Modern)</option>
+                      <option value="font-serif">Playfair Display (Serif / Editorial)</option>
+                      <option value="font-mono">Space Mono (Mono / Telemetry)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Button Layout configurations -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-100 pt-4">
+                  <div class="space-y-1">
+                    <label for="theme-btn-style" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Button Shape</label>
+                    <select id="theme-btn-style" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                      <option value="rounded-none">Square / Sharp</option>
+                      <option value="rounded-md">Medium Radius</option>
+                      <option value="rounded-lg">Large Radius</option>
+                      <option value="rounded-full">Fully Circular Pill</option>
+                    </select>
+                  </div>
+                  <div class="space-y-1">
+                    <label for="theme-btn-bg" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Button Background</label>
+                    <input type="text" id="theme-btn-bg" placeholder="#ffffff" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                  </div>
+                  <div class="space-y-1">
+                    <label for="theme-btn-text" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Button Text Color</label>
+                    <input type="text" id="theme-btn-text" placeholder="#000000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Button save custom styles -->
+              <button id="save-appearance-btn" class="w-full bg-black hover:bg-slate-800 text-white font-semibold text-sm py-3 rounded-xl transition-all shadow-md">
+                Publish Custom Theme
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= ANALYTICS PANEL ================= -->
+        <div id="panel-analytics" class="hidden space-y-6">
+          
+          <!-- Summary indicators grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-2">
+              <span class="text-xs font-semibold text-slate-500">Total Profile Views</span>
+              <p id="stats-total-views" class="text-3xl font-black tracking-tight tabular-nums text-slate-900">0</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-2">
+              <span class="text-xs font-semibold text-slate-500">Total Link Clicks</span>
+              <p id="stats-total-clicks" class="text-3xl font-black tracking-tight tabular-nums text-slate-900">0</p>
+            </div>
+          </div>
+
+          <!-- Link individual clicks leaderboard -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
+            <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider">Individual Link Performance</h3>
+            
+            <div id="analytics-links-empty" class="hidden py-8 text-center text-slate-400">
+              <p class="text-xs">No link click data captured yet.</p>
+            </div>
+
+            <div id="analytics-links-list" class="space-y-3">
+              <!-- Dynamically rendered clicks lists -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= SETTINGS PANEL ================= -->
+        <div id="panel-settings" class="hidden space-y-6">
+          
+          <!-- QR Code Section -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm text-center">
+            <div class="space-y-2">
+              <h3 class="text-sm font-bold uppercase text-slate-500 tracking-wider text-left">My Profile QR Code</h3>
+              <p class="text-xs text-slate-500 text-left">Generate and download a high-resolution QR code pointing directly to your BioLink page.</p>
+            </div>
+
+            <!-- Dynamic QR Canvas Wrapper -->
+            <div class="flex justify-center py-4">
+              <div id="qrcode-wrapper" class="p-4 bg-white border border-slate-200 rounded-2xl shadow-inner qrcode-container"></div>
+            </div>
+
+            <!-- Share Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+              <button id="copy-profile-url-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs py-2.5 px-4 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                <span>Copy BioLink URL</span>
+              </button>
+              <button id="download-qr-btn" class="bg-black hover:bg-slate-800 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Download Vector QR Code</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Permanent Account Deletion Card -->
+          <div class="bg-rose-50/50 border border-rose-200 rounded-2xl p-6 space-y-6 shadow-sm">
+            <div class="space-y-2">
+              <h3 class="text-sm font-bold uppercase text-rose-800 tracking-wider">Irreversible Account Deletion</h3>
+              <p class="text-xs text-rose-600 leading-relaxed">
+                Permanently deletes your custom username, uploaded profile avatar, links, and all click and view statistics. 
+                <strong>This action is permanent and cannot be undone.</strong> All data is purged with no backup retention.
+              </p>
+            </div>
+
+            <!-- Confirmation Flow inputs -->
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <label for="delete-confirmation-input" class="text-[10px] font-bold text-rose-800 uppercase tracking-wider block">
+                  Type <span class="font-extrabold select-all">PERMANENTLY DELETE</span> to confirm
+                </label>
+                <input 
+                  type="text" 
+                  id="delete-confirmation-input" 
+                  placeholder="Type exactly..." 
+                  class="w-full px-4 py-3 border border-rose-200 bg-white text-rose-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 font-bold"
+                >
+              </div>
+
+              <!-- Action triggers -->
+              <button 
+                id="delete-account-btn" 
+                disabled 
+                class="w-full bg-rose-200 text-rose-400 font-semibold text-sm py-3 rounded-xl shadow-md cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <span>Permanently Erase My Entire Account</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Mobile Device Mockup Sticky (Right Column) -->
+      <div class="lg:col-span-5 lg:sticky lg:top-24 flex justify-center w-full">
+        <div class="w-full max-w-[320px] shrink-0">
+          
+          <div class="text-center mb-3">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Live Active Preview</span>
+          </div>
+
+          <!-- Smartphone Chassis container mock -->
+          <div class="phone-mockup-screen border-[10px] border-slate-900 rounded-[38px] shadow-2xl relative w-full aspect-[9/18.5] max-h-[580px] bg-slate-900 overflow-hidden flex flex-col justify-between">
+            <!-- Notch Speaker and camera -->
+            <div class="phone-mockup-speaker"></div>
+            <div class="phone-mockup-camera"></div>
+
+            <!-- Dynamic screen wrapper styled via Javascript Theme Engine -->
+            <div id="mock-screen-content" class="absolute inset-0 pt-12 pb-8 px-5 flex flex-col items-center justify-between overflow-y-auto w-full h-full text-center">
+              
+              <div class="w-full space-y-6 flex flex-col items-center">
+                <!-- Avatar -->
+                <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-800 border border-white/20 shadow-inner">
+                  <img id="mock-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/%3E%3C/svg%3E" class="w-full h-full object-cover">
+                </div>
+
+                <!-- Display Text details -->
+                <div class="space-y-2 w-full">
+                  <h4 id="mock-display-name" class="theme-text-primary text-base font-bold truncate">Display Name</h4>
+                  <p id="mock-bio" class="theme-text-muted text-xs leading-relaxed line-clamp-3">Provide bio details</p>
+                </div>
+
+                <!-- Active Hyperlinks -->
+                <div id="mock-links-container" class="w-full space-y-2.5">
+                  <!-- Dynamically rendered buttons representing links -->
+                </div>
+              </div>
+
+              <!-- Footer logo -->
+              <div class="text-[10px] font-bold tracking-wider opacity-60 theme-text-muted flex items-center justify-center gap-1 pt-6">
+                <span class="border border-current px-1 py-0.2 rounded-xs">B</span>
+                <span>BioLink</span>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="py-8 border-t border-slate-200 bg-white text-center text-xs text-slate-400 mt-12">
+    &copy; 2026 BioLink. Android-optimized touch dashboard dashboard workspace.
+  </footer>
+
+  <!-- ================= CLIENT ACTIONS CORE LOGIC ================= -->
+  <script>
+    // Global Dashboard Session State Variables
+    let currentUser = null;
+    let userProfile = null;
+    let userLinks = [];
+    let currentActiveTab = 'links';
+    
+    // Default active style
+    let activeTheme = {
+      bgColor: "#0f172a",
+      bgType: "solid",
+      textColor: "#ffffff",
+      btnStyle: "rounded-lg",
+      btnBgColor: "#ffffff",
+      btnTextColor: "#0f172a",
+      fontFamily: "font-sans",
+      borderRadius: "8px"
+    };
+
+    // Preconfigured templates
+    const PRESETS = {
+      'dark': {
+        bgColor: "#0f172a",
+        bgType: "solid",
+        textColor: "#ffffff",
+        btnStyle: "rounded-lg",
+        btnBgColor: "#ffffff",
+        btnTextColor: "#0f172a",
+        fontFamily: "font-sans",
+        borderRadius: "8px"
+      },
+      'emerald': {
+        bgColor: "#064e3b",
+        bgType: "solid",
+        textColor: "#f0fdf4",
+        btnStyle: "rounded-full",
+        btnBgColor: "#10b981",
+        btnTextColor: "#ffffff",
+        fontFamily: "font-sans",
+        borderRadius: "9999px"
+      },
+      'violet': {
+        bgColor: "linear-gradient(135deg, #4c1d95, #1e1b4b)",
+        bgType: "gradient",
+        textColor: "#faf5ff",
+        btnStyle: "rounded-lg",
+        btnBgColor: "#8b5cf6",
+        btnTextColor: "#ffffff",
+        fontFamily: "font-serif",
+        borderRadius: "12px"
+      },
+      'minimal-light': {
+        bgColor: "#ffffff",
+        bgType: "solid",
+        textColor: "#0f172a",
+        btnStyle: "rounded-md",
+        btnBgColor: "#0f172a",
+        btnTextColor: "#ffffff",
+        fontFamily: "font-sans",
+        borderRadius: "4px"
+      }
+    };
+
+    // Initialize Workspace
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1. Connection and Protection Check
+      checkSupabaseConnection();
+      currentUser = await protectUserRoute();
+      if (!currentUser) return; // Unauthenticated will be redirected by helper
+
+      // Blocked users are signed out immediately
+      if (isSupabaseConfigured() && await checkIsBlocked(currentUser.id)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        showToast('Your account is blocked. Access is restricted.', 'error');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        return;
+      }
+
+      // 2. Fetch and populate user records
+      await loadUserData();
+
+      // 3. Setup Layout Elements
+      setupTabs();
+      setupLinkForm();
+      setupProfileForm();
+      setupAvatarUpload();
+      setupThemeInputs();
+      setupDeletionFlow();
+
+      // Clear loading screen
+      document.getElementById('loading-screen').classList.add('hidden');
+    });
+
+    // Fetch master user profile, links, views and clicks from database
+    async function loadUserData() {
+      if (isSupabaseConfigured()) {
+        try {
+          // Fetch Profile
+          const { data: profile, error: profileErr } = await supabase
+            .from('profiles')
+            .select(PROFILE_COLS)
+            .eq('id', currentUser.id)
+            .maybeSingle();
+
+          if (profileErr) throw profileErr;
+          if (!profile) throw new Error('Profile record not found for this account');
+          userProfile = profile;
+          activeTheme = sanitizeTheme(profile.theme);
+
+          // Fetch Links
+          const { data: links, error: linksErr } = await supabase
+            .from('links')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('position', { ascending: true });
+
+          if (linksErr) throw linksErr;
+          userLinks = links || [];
+
+          // Fetch Analytics (Profile Views & click counters)
+          const { count: viewCount, error: viewsErr } = await supabase
+            .from('profile_views')
+            .select('*', { count: 'exact', head: true })
+            .eq('profile_id', currentUser.id);
+
+          const { count: clickCount, error: clicksErr } = await supabase
+            .from('link_clicks')
+            .select('*', { count: 'exact', head: true })
+            .eq('profile_id', currentUser.id);
+
+          document.getElementById('stats-total-views').innerText = viewCount || 0;
+          document.getElementById('stats-total-clicks').innerText = clickCount || 0;
+
+        } catch (error) {
+          console.error("Error loading Supabase records:", error);
+          showToast('Failed to retrieve user data from Supabase', 'error');
+          userProfile = userProfile || { id: currentUser.id, username: '', display_name: '', bio: '', avatar_url: '', theme: activeTheme };
+        }
+      } else {
+        // Fallback Local Storage Mode load
+        const storedUser = localStorage.getItem('demo_user') ? JSON.parse(localStorage.getItem('demo_user')) : null;
+        userProfile = {
+          id: currentUser.id,
+          username: localStorage.getItem('demo_registered_username') || 'demo_user',
+          display_name: localStorage.getItem('demo_display_name') || 'Demo Profile',
+          bio: localStorage.getItem('demo_bio') || 'An active, fully customized BioLink demo!',
+          avatar_url: localStorage.getItem('demo_avatar') || '',
+          theme: activeTheme
+        };
+        
+        userLinks = localStorage.getItem('demo_links') ? JSON.parse(localStorage.getItem('demo_links')) : [
+          { id: '1', title: 'Check My Website', url: 'https://example.com', is_active: true, click_count: 31, position: 0 },
+          { id: '2', title: 'Join My Newsletter', url: 'https://newsletter.com', is_active: true, click_count: 14, position: 1 }
+        ];
+
+        document.getElementById('stats-total-views').innerText = 124;
+        document.getElementById('stats-total-clicks').innerText = 45;
+      }
+
+      // Populate Inputs & Draw Dashboard Elements
+      populateHeaderAndForms();
+      renderLinksList();
+      renderMockPreview();
+      renderAnalyticsList();
+      generateQR();
+    }
+
+    function populateHeaderAndForms() {
+      // Header info
+      document.getElementById('header-host').innerText = window.location.host + '/';
+      document.getElementById('header-username-val').innerText = userProfile.username;
+      document.getElementById('username-display-header').classList.remove('hidden');
+
+      // Set public profile preview link target
+      const profileUrl = window.location.origin + '/profile.html?u=' + userProfile.username;
+      document.getElementById('view-profile-btn').href = profileUrl;
+
+      // Profile Appearance Form fields
+      document.getElementById('display-name').value = userProfile.display_name || '';
+      document.getElementById('bio').value = userProfile.bio || '';
+
+      // Set Avatar Image preview
+      if (userProfile.avatar_url) {
+        document.getElementById('avatar-preview-element').src = userProfile.avatar_url;
+      }
+    }
+
+    // Toggle active tabs
+    function setupTabs() {
+      const tabs = ['links', 'appearance', 'analytics', 'settings'];
+      tabs.forEach(tab => {
+        document.getElementById(`tab-${tab}`).addEventListener('click', () => {
+          tabs.forEach(t => {
+            // Revert active styles
+            const btn = document.getElementById(`tab-${t}`);
+            btn.className = 'flex-1 text-center py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center justify-center gap-1.5';
+            document.getElementById(`panel-${t}`).classList.add('hidden');
+          });
+
+          // Mark active style (No pill backgrounds or chips, just a clean box matching filter controller standard)
+          const activeBtn = document.getElementById(`tab-${tab}`);
+          activeBtn.className = 'flex-1 text-center py-2 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-sm transition-all flex items-center justify-center gap-1.5';
+          document.getElementById(`panel-${tab}`).classList.remove('hidden');
+          currentActiveTab = tab;
+        });
+      });
+    }
+
+    // Draw Links List inside edit area
+    function renderLinksList() {
+      const container = document.getElementById('links-list');
+      const emptyState = document.getElementById('links-empty');
+      container.innerHTML = '';
+
+      if (userLinks.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      userLinks.forEach((link, idx) => {
+        const card = document.createElement('div');
+        card.setAttribute('data-id', link.id);
+        card.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 transition-all animate-fade-in';
+        
+        card.innerHTML = `
+          <!-- Drag handle (touch-friendly standard) -->
+          <div class="drag-handle text-slate-400 p-1 hover:text-slate-600 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8h16M4 16h16"/></svg>
+          </div>
+
+          <!-- Title & URL Content -->
+          <div class="flex-grow space-y-1 min-w-0">
+            <input type="text" value="${escapeHTML(link.title)}" onchange="updateLinkDetails('${link.id}', 'title', this.value)" class="w-full bg-transparent border-none font-bold text-sm text-slate-900 focus:ring-0 focus:outline-none focus:bg-white px-1.5 py-0.5 rounded">
+            <input type="text" value="${escapeHTML(link.url)}" onchange="updateLinkDetails('${link.id}', 'url', this.value)" class="w-full bg-transparent border-none text-xs text-slate-400 focus:ring-0 focus:outline-none focus:bg-white px-1.5 py-0.5 rounded truncate">
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 font-medium px-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <span>${link.click_count || 0} clicks</span>
+            </div>
+          </div>
+
+          <!-- Controls (Toggle active & Delete button) -->
+          <div class="flex items-center gap-3 shrink-0">
+            <!-- Touch toggle switch -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" ${link.is_active ? 'checked' : ''} onchange="updateLinkDetails('${link.id}', 'is_active', this.checked)" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:width-4 after:transition-all peer-checked:bg-black"></div>
+            </label>
+
+            <!-- Delete Trigger -->
+            <button onclick="deleteLinkRecord('${link.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Initialize SortableJS for reordering
+      if (!window.linksSortable) window.linksSortable = new Sortable(container, { // one instance is enough
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: async (evt) => {
+          await reorderLinksPositions();
+        }
+      });
+    }
+
+    // Save positions of links from DOM sequence
+    async function reorderLinksPositions() {
+      const ids = Array.from(document.getElementById('links-list').children).map(child => child.getAttribute('data-id'));
+      
+      // Update local array positions
+      userLinks = ids.map((id, index) => {
+        const link = userLinks.find(l => l.id === id);
+        link.position = index;
+        return link;
+      });
+
+      renderMockPreview();
+
+      if (isSupabaseConfigured()) {
+        try {
+          // Perform bulk update of positions in database
+          const results = await Promise.all(userLinks.map((l, i) =>
+            supabase.from('links').update({ position: i }).eq('id', l.id)));
+          const failed = results.find(r => r.error);
+          if (failed) throw failed.error;
+          showToast('Links order saved!');
+        } catch (error) {
+          console.error("Error saving positions:", error);
+          showToast('Failed to update links layout sequence in Supabase', 'error');
+        }
+      } else {
+        localStorage.setItem('demo_links', JSON.stringify(userLinks));
+        showToast('Links order saved in Demo!');
+      }
+    }
+
+    // Add Link implementation
+    function setupLinkForm() {
+      const form = document.getElementById('add-link-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const title = document.getElementById('link-title').value.trim();
+        const rawUrl = document.getElementById('link-url').value.trim();
+
+        if (!validateUrl(rawUrl)) {
+          showToast('Invalid destination URL format', 'error');
+          return;
+        }
+
+        const url = sanitizeUrl(rawUrl);
+        const position = userLinks.length;
+
+        try {
+          if (isSupabaseConfigured()) {
+            const { data, error } = await supabase
+              .from('links')
+              .insert([
+                {
+                  user_id: currentUser.id,
+                  title: title,
+                  url: url,
+                  position: position,
+                  is_active: true
+                }
+              ])
+              .select()
+              .single();
+
+            if (error) throw error;
+            userLinks.push(data);
+          } else {
+            // Demo fallback Add link
+            const mockLink = {
+              id: Date.now().toString(),
+              user_id: currentUser.id,
+              title: title,
+              url: url,
+              position: position,
+              is_active: true,
+              click_count: 0
+            };
+            userLinks.push(mockLink);
+            localStorage.setItem('demo_links', JSON.stringify(userLinks));
+          }
+
+          showToast('Link added successfully!');
+          form.reset();
+          renderLinksList();
+          renderMockPreview();
+          renderAnalyticsList();
+
+        } catch (error) {
+          console.error("Error adding link:", error);
+          showToast('Could not save link. Please try again.', 'error');
+        }
+      });
+    }
+
+    // Inline link edit (Triggered onchange of fields)
+    async function updateLinkDetails(id, key, val) {
+      const link = userLinks.find(l => l.id === id);
+      if (!link) return;
+
+      let newVal = val;
+      if (key === 'url') {
+        newVal = sanitizeUrl(val);
+        if (!newVal) {
+          showToast('Invalid URL. Use a full http(s) address like https://example.com', 'error');
+          renderLinksList(); // restore the previous value in the input
+          return;
+        }
+      } else if (key === 'title') {
+        newVal = String(val).trim().slice(0, 255);
+        if (!newVal) {
+          showToast('A link needs a title', 'error');
+          renderLinksList();
+          return;
+        }
+      }
+
+      const previous = link[key];
+      link[key] = newVal;
+      renderMockPreview();
+
+      if (isSupabaseConfigured()) {
+        try {
+          const { error } = await supabase.from('links').update({ [key]: newVal }).eq('id', id);
+          if (error) throw error;
+          showToast('Link updated successfully!');
+        } catch (error) {
+          console.error(error);
+          link[key] = previous;
+          renderLinksList();
+          renderMockPreview();
+          showToast('Failed to update link in Supabase', 'error');
+        }
+      } else {
+        localStorage.setItem('demo_links', JSON.stringify(userLinks));
+        showToast('Link updated in Demo!');
+      }
+    }
+
+    // Saves the compacted positions after a deletion
+    async function persistPositions() {
+      if (!isSupabaseConfigured()) return;
+      await Promise.all(userLinks.map((l, i) => supabase.from('links').update({ position: i }).eq('id', l.id)));
+    }
+
+    // Delete link handler
+    async function deleteLinkRecord(id) {
+      if (!confirm('Are you sure you want to delete this link?')) return;
+
+      userLinks = userLinks.filter(l => l.id !== id);
+      
+      // Reset remaining positions
+      userLinks.forEach((l, idx) => l.position = idx);
+
+      renderLinksList();
+      renderMockPreview();
+      renderAnalyticsList();
+
+      if (isSupabaseConfigured()) {
+        try {
+          const { error } = await supabase
+            .from('links')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+          await persistPositions();
+          showToast('Link deleted successfully');
+        } catch (error) {
+          console.error(error);
+          showToast('Error removing link from database', 'error');
+        }
+      } else {
+        localStorage.setItem('demo_links', JSON.stringify(userLinks));
+        showToast('Link deleted in Demo!');
+      }
+    }
+
+    // Save Text components Profile fields
+    function setupProfileForm() {
+      const form = document.getElementById('profile-text-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const displayName = document.getElementById('display-name').value.trim();
+        const bio = document.getElementById('bio').value.trim();
+
+        userProfile.display_name = displayName;
+        userProfile.bio = bio;
+
+        renderMockPreview();
+
+        if (isSupabaseConfigured()) {
+          try {
+            const { error } = await supabase
+              .from('profiles')
+              .update({
+                display_name: displayName,
+                bio: bio
+              })
+              .eq('id', currentUser.id);
+
+            if (error) throw error;
+            showToast('Profile settings saved successfully!');
+          } catch (error) {
+            console.error(error);
+            showToast('Failed to update profile settings', 'error');
+          }
+        } else {
+          localStorage.setItem('demo_display_name', displayName);
+          localStorage.setItem('demo_bio', bio);
+          showToast('Profile settings updated in Demo!');
+        }
+      });
+    }
+
+    // Avatar upload setup and file restrictions handling
+    function setupAvatarUpload() {
+      const fileInput = document.getElementById('avatar-file-input');
+      const deleteBtn = document.getElementById('delete-avatar-btn');
+      const previewImg = document.getElementById('avatar-preview-element');
+      const mockPreviewImg = document.getElementById('mock-avatar');
+      const spinner = document.getElementById('avatar-spinner');
+
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Size Limit: 2MB (2 * 1024 * 1024 bytes)
+        if (file.size > 2 * 1024 * 1024) {
+          showToast('File size is too large. Max limit is 2MB.', 'error');
+          fileInput.value = '';
+          return;
+        }
+
+        // Extension check
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext) || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          showToast('Unsupported file type. Only JPG, JPEG, PNG, WEBP allowed.', 'error');
+          fileInput.value = '';
+          return;
+        }
+
+        // Preview locally immediately
+        const localReader = new FileReader();
+        localReader.onload = (event) => {
+          previewImg.src = event.target.result;
+          mockPreviewImg.src = event.target.result;
+        };
+        localReader.readAsDataURL(file);
+
+        // Upload to Supabase Storage
+        spinner.classList.remove('hidden');
+
+        try {
+          if (isSupabaseConfigured()) {
+            const path = `${currentUser.id}/avatar-${Date.now()}.${ext}`;
+
+            // Remember the old files; they are deleted only after the new upload succeeded
+            const { data: oldFiles } = await supabase.storage.from('avatars').list(currentUser.id);
+
+            // Upload new file
+            const { error: uploadError } = await supabase.storage
+              .from('avatars')
+              .upload(path, file, { cacheControl: '3600', upsert: true, contentType: file.type });
+
+            if (uploadError) throw uploadError;
+
+            // Retrieve Public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('avatars')
+              .getPublicUrl(path);
+
+            userProfile.avatar_url = publicUrl;
+
+            // Save public URL in profiles table
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ avatar_url: publicUrl })
+              .eq('id', currentUser.id);
+
+            if (updateError) throw updateError;
+
+            const stale = (oldFiles || []).map(f => `${currentUser.id}/${f.name}`).filter(p => p !== path);
+            if (stale.length > 0) await supabase.storage.from('avatars').remove(stale);
+            showToast('Avatar uploaded successfully!');
+          } else {
+            // Save inside local storage
+            setTimeout(() => {
+              const b64 = previewImg.src;
+              localStorage.setItem('demo_avatar', b64);
+              userProfile.avatar_url = b64;
+              showToast('Avatar uploaded in Demo Mode!');
+            }, 1000);
+          }
+        } catch (error) {
+          console.error(error);
+          showToast('Upload failed: ' + (error.message || 'Error uploading file'), 'error');
+        } finally {
+          setTimeout(() => spinner.classList.add('hidden'), 1000);
+        }
+      });
+
+      // Remove avatar trigger
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to remove your avatar?')) return;
+
+        previewImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23cbd5e1'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/%3E%3C/svg%3E";
+        mockPreviewImg.src = previewImg.src;
+        userProfile.avatar_url = '';
+
+        if (isSupabaseConfigured()) {
+          try {
+            // Delete storage objects folder
+            const { data: listData } = await supabase.storage.from('avatars').list(currentUser.id);
+            if (listData && listData.length > 0) {
+              const filesToDelete = listData.map(f => `${currentUser.id}/${f.name}`);
+              await supabase.storage.from('avatars').remove(filesToDelete);
+            }
+
+            // Update profile record
+            const { error } = await supabase
+              .from('profiles')
+              .update({ avatar_url: null })
+              .eq('id', currentUser.id);
+
+            if (error) throw error;
+            showToast('Avatar removed successfully');
+          } catch (error) {
+            console.error(error);
+            showToast('Error removing avatar data from database', 'error');
+          }
+        } else {
+          localStorage.removeItem('demo_avatar');
+          showToast('Avatar removed in Demo!');
+        }
+      });
+    }
+
+    // Populate theme values inside appearance sub-form
+    function setupThemeInputs() {
+      // Background Mode select trigger
+      const bgTypeInput = document.getElementById('theme-bg-type');
+      const bgColorInput = document.getElementById('theme-bg-color');
+      const bgColorLabel = document.getElementById('theme-bg-color-label');
+
+      bgTypeInput.addEventListener('change', (e) => {
+        if (e.target.value === 'gradient') {
+          bgColorLabel.innerText = "Linear Gradient Preset";
+          bgColorInput.placeholder = "linear-gradient(135deg, #1e1b4b, #311042)";
+        } else {
+          bgColorLabel.innerText = "Solid Hex Color";
+          bgColorInput.placeholder = "#0f172a";
+        }
+      });
+
+      // Map local activeTheme fields
+      bgTypeInput.value = activeTheme.bgType || 'solid';
+      bgColorInput.value = activeTheme.bgColor || '#0f172a';
+      document.getElementById('theme-text-color').value = activeTheme.textColor || '#ffffff';
+      document.getElementById('theme-font').value = activeTheme.fontFamily || 'font-sans';
+      document.getElementById('theme-btn-style').value = activeTheme.btnStyle || 'rounded-lg';
+      document.getElementById('theme-btn-bg').value = activeTheme.btnBgColor || '#ffffff';
+      document.getElementById('theme-btn-text').value = activeTheme.btnTextColor || '#000000';
+
+      // Save Theme Trigger
+      document.getElementById('save-appearance-btn').addEventListener('click', async () => {
+        const bgType = bgTypeInput.value;
+        const bgColor = bgColorInput.value.trim();
+        const textColor = document.getElementById('theme-text-color').value.trim();
+        const fontFamily = document.getElementById('theme-font').value;
+        const btnStyle = document.getElementById('theme-btn-style').value;
+        const btnBgColor = document.getElementById('theme-btn-bg').value.trim();
+        const btnTextColor = document.getElementById('theme-btn-text').value.trim();
+
+        // XSS & Code injection protection (ensuring only safe visual characters can be written)
+        if (bgType === 'solid' && !isValidColor(bgColor)) {
+          showToast('Invalid background color. Use a hex value like #0f172a', 'error');
+          return;
+        }
+        if (bgType === 'gradient' && !isValidGradient(bgColor)) {
+          showToast('Invalid gradient. Example: linear-gradient(135deg, #1e1b4b, #311042)', 'error');
+          return;
+        }
+        if (!isValidColor(textColor) || !isValidColor(btnBgColor) || !isValidColor(btnTextColor)) {
+          showToast('Text and button colors must be hex values like #ffffff', 'error');
+          return;
+        }
+
+        activeTheme = {
+          bgType,
+          bgColor,
+          textColor,
+          fontFamily,
+          btnStyle,
+          btnBgColor,
+          btnTextColor,
+          borderRadius: btnStyle === 'rounded-full' ? '9999px' : btnStyle === 'rounded-lg' ? '12px' : btnStyle === 'rounded-md' ? '6px' : '0px'
+        };
+
+        renderMockPreview();
+
+        if (isSupabaseConfigured()) {
+          try {
+            const { error } = await supabase
+              .from('profiles')
+              .update({ theme: activeTheme })
+              .eq('id', currentUser.id);
+
+            if (error) throw error;
+            showToast('Custom theme published!');
+          } catch (error) {
+            console.error(error);
+            showToast('Failed to sync theme to Supabase', 'error');
+          }
+        } else {
+          localStorage.setItem('demo_theme', JSON.stringify(activeTheme));
+          showToast('Custom theme saved in Demo!');
+        }
+      });
+    }
+
+    // Handles picking preconfigured presets
+    function selectThemePreset(key) {
+      if (PRESETS[key]) {
+        activeTheme = { ...PRESETS[key] };
+        
+        // Sync Inputs
+        document.getElementById('theme-bg-type').value = activeTheme.bgType;
+        document.getElementById('theme-bg-color').value = activeTheme.bgColor;
+        document.getElementById('theme-text-color').value = activeTheme.textColor;
+        document.getElementById('theme-font').value = activeTheme.fontFamily;
+        document.getElementById('theme-btn-style').value = activeTheme.btnStyle;
+        document.getElementById('theme-btn-bg').value = activeTheme.btnBgColor;
+        document.getElementById('theme-btn-text').value = activeTheme.btnTextColor;
+
+        if (activeTheme.bgType === 'gradient') {
+          document.getElementById('theme-bg-color-label').innerText = "Linear Gradient Preset";
+        } else {
+          document.getElementById('theme-bg-color-label').innerText = "Solid Hex Color";
+        }
+
+        renderMockPreview();
+        showToast(`Preset "${key}" selected. Click publish to save!`);
+      }
+    }
+
+    // Dynamic renderer that updates the sticky visual smartphone preview in real time
+    function renderMockPreview() {
+      const screen = document.getElementById('mock-screen-content');
+      
+      // Apply details
+      document.getElementById('mock-display-name').innerText = userProfile.display_name || 'Display Name';
+      document.getElementById('mock-bio').innerText = userProfile.bio || 'Enter profile biography...';
+      
+      // Update avatar
+      if (userProfile.avatar_url) {
+        document.getElementById('mock-avatar').src = userProfile.avatar_url;
+      }
+
+      // Draw Mock Links
+      const linksContainer = document.getElementById('mock-links-container');
+      linksContainer.innerHTML = '';
+
+      const activeLinks = userLinks.filter(l => l.is_active);
+
+      if (activeLinks.length === 0) {
+        linksContainer.innerHTML = `
+          <div class="py-4 border border-dashed border-white/20 rounded-lg theme-text-muted text-[10px] uppercase font-bold tracking-wider">
+            Your active links show here
+          </div>
+        `;
+      } else {
+        activeLinks.forEach(link => {
+          const btn = document.createElement('div');
+          btn.className = 'theme-btn w-full py-2.5 px-4 text-xs font-bold text-center block shadow-sm truncate';
+          btn.innerText = link.title;
+          linksContainer.appendChild(btn);
+        });
+      }
+
+      // Apply style engine safely
+      applyProfileTheme(screen, activeTheme);
+    }
+
+    // Draw analytics list in analytics page
+    function renderAnalyticsList() {
+      const container = document.getElementById('analytics-links-list');
+      const emptyState = document.getElementById('analytics-links-empty');
+      container.innerHTML = '';
+
+      if (userLinks.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      // Sort links by click counts
+      const sorted = [...userLinks].sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
+
+      const maxClicks = Math.max(...sorted.map(l => l.click_count || 0), 1);
+
+      sorted.forEach(link => {
+        const row = document.createElement('div');
+        row.className = 'space-y-1.5';
+
+        const percent = Math.max(10, Math.floor(((link.click_count || 0) / maxClicks) * 100));
+
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-slate-800 truncate pr-4">${escapeHTML(link.title)}</span>
+            <span class="font-mono tabular-nums text-slate-500 font-semibold shrink-0">${link.click_count || 0} clicks</span>
+          </div>
+          <!-- Bar indicators -->
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div class="bg-black h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // Generate Profile QR Code
+    function generateQR() {
+      const qrcodeWrapper = document.getElementById('qrcode-wrapper');
+      qrcodeWrapper.innerHTML = '';
+
+      const profileUrl = window.location.origin + '/profile.html?u=' + userProfile.username;
+
+      // Draw QR code (qrcode@1.4.4 canvas API)
+      drawQr(qrcodeWrapper, profileUrl, 140, 'H');
+
+      // Bind button triggers
+      document.getElementById('copy-profile-url-btn').onclick = () => {
+        navigator.clipboard.writeText(profileUrl);
+        showToast('Profile URL copied to clipboard!');
+      };
+
+      document.getElementById('download-qr-btn').onclick = () => {
+        const img = qrcodeWrapper.querySelector('img') || qrcodeWrapper.querySelector('canvas');
+        if (img) {
+          const src = img.src || img.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = src;
+          a.download = `biolink-qr-${userProfile.username}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          showToast('Downloading QR Code image...');
+        } else {
+          showToast('Could not download QR canvas', 'error');
+        }
+      };
+    }
+
+    // Permanent Account Deletion logic
+    function setupDeletionFlow() {
+      const input = document.getElementById('delete-confirmation-input');
+      const deleteBtn = document.getElementById('delete-account-btn');
+
+      input.addEventListener('input', (e) => {
+        if (e.target.value === 'PERMANENTLY DELETE') {
+          deleteBtn.disabled = false;
+          deleteBtn.className = 'w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer';
+        } else {
+          deleteBtn.disabled = true;
+          deleteBtn.className = 'w-full bg-rose-200 text-rose-400 font-semibold text-sm py-3 rounded-xl shadow-md cursor-not-allowed transition-all flex items-center justify-center gap-2';
+        }
+      });
+
+      deleteBtn.addEventListener('click', async () => {
+        if (input.value !== 'PERMANENTLY DELETE') return;
+
+        if (!confirm('This operation is completely irreversible and deletes all links, uploads, and view history. Confirm final deletion?')) {
+          return;
+        }
+
+        deleteBtn.disabled = true;
+        deleteBtn.innerText = 'Purging account records...';
+
+        try {
+          if (isSupabaseConfigured()) {
+            // Storage files can only be removed via the Storage API, so do it before the RPC
+            const { data: ownFiles } = await supabase.storage.from('avatars').list(currentUser.id);
+            if (ownFiles && ownFiles.length > 0) {
+              await supabase.storage.from('avatars').remove(ownFiles.map(f => `${currentUser.id}/${f.name}`));
+            }
+
+            // Trigger secure database RPC purge
+            const { data, error } = await supabase.rpc('delete_user_account', {
+              p_target_user_id: currentUser.id
+            });
+
+            if (error) throw error;
+            
+            // Clean local auth session
+            await supabase.auth.signOut({ scope: 'local' });
+          } else {
+            // Demo Purge
+            localStorage.clear();
+          }
+
+          showToast('Your account was permanently deleted.', 'warning');
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 2000);
+
+        } catch (error) {
+          console.error(error);
+          showToast('Purge operation failed: ' + (error.message || 'Database error'), 'error');
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            <span>Permanently Erase My Entire Account</span>
+          `;
+        }
+      });
+    }
+
+    // Register log out listener
+    document.getElementById('logout-btn').addEventListener('click', logoutUser);
+  </script>
+</body>
+</html>
