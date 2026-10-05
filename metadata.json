@@ -1,6 +1,0 @@
-{
-  "name": "BongoLink",
-  "description": "High-fidelity, dual-language (English/Bangla) Link-in-Bio and Click Analytics platform featuring Master Admin control, custom layouts, and real-time insights.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
