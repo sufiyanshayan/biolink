@@ -1,9 +1,0 @@
-{
-  "name": "biolink",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Link-in-bio SaaS: static HTML + Supabase. No build step.",
-  "scripts": {
-    "dev": "npx serve . -l 3000"
-  }
-}
